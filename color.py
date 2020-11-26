@@ -1,14 +1,19 @@
 import RPi.GPIO as GPIO
 import time
-import tkinter as tk
+from tkinter import *
 import tkinter.font as tkFont
+import requests
+
+def raise_frame(frame):
+    frame.tkraise()
 
 #Declare Global Variables
 root = None
 dfont = None
-frame = None
+welcome = None
 msg = None
 value = None
+number = None
 aux_vcc = 16
 s2 = 5
 s3 = 6
@@ -17,6 +22,20 @@ NUM_CYCLES = 10
 
 #Fulscreen or windowed
 fullscreen = False
+
+def number_e():
+    global number
+    num = number.get()
+    number.set(num)
+    print(num)
+    #return num
+    para = {'action': 'saveUserData', 'MOB': num, 'MCID': '002000244', 'BTNO': '10'}
+    r = requests.post("http://clickcash.in/apisave/apiDataSavever2.php", data=para)
+    print(r.text)
+    raise_frame(PageTwo)
+    #time.sleep(15)
+    num=0
+    number.set(num)
 
 #toggle fullscreen
 def toggle_fullscreen(event=None):
@@ -37,12 +56,12 @@ def end_fullscreen(event=None):
 #resize font based on screen size
 def resize(event=None):
     global dfont
-    global frame
-    new_size = -max(12, int((frame.winfo_height() / 10)))
+    global welcome
+    new_size = -max(12, int((welcome.winfo_height() / 10)))
     dfont.configure(size=new_size)
 
 def setup():
-    GPIO.cleanup()
+    #GPIO.cleanup()
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(signal, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(aux_vcc, GPIO.OUT)
@@ -59,58 +78,67 @@ def loop():
     global root
     global value
     global msg
-    try:
-        GPIO.output(s2, GPIO.HIGH)
-        GPIO.output(s3, GPIO.LOW)
-        time.sleep(0.3)
-        start = time.time()
-        for impulse_count in range(NUM_CYCLES):
-            GPIO.wait_for_edge(signal, GPIO.FALLING)
-        duration = time.time() - start
-        val = NUM_CYCLES / duration
-        value.set(val)
-        print("value: ", val)
-        if val > 6500:
-            print("Cigarette Bud Detected")
-            msge="Cigarette bud\nDetectedd"
-            msg.set(msge)
-        else:
-            print("Place the Cigarette")
-            msge="Place the\nCigarette"
-            msg.set(msge)
-    except KeyboardInterrupt:
-        endprogram()
-
+    global number
+    global num
+    GPIO.output(s2, GPIO.HIGH)
+    GPIO.output(s3, GPIO.LOW)
+    time.sleep(0.3)
+    start = time.time()
+    for impulse_count in range(NUM_CYCLES):
+        GPIO.wait_for_edge(signal, GPIO.FALLING)
+    duration = time.time() - start
+    val = NUM_CYCLES / duration
+    value.set(val)
+    print("value: ", val)
+    if val > 5600:
+        print("Cigarette Bud Detected")
+        msge="Cigarette bud\nDetectedd"
+        msg.set(msge)
+        raise_frame(PageOne)
+    else:
+        print("Place the Cigarette")
+        msge="Place the\nCigarette"
+        msg.set(msge)
     root.after(500, loop)
+
 #create the window
-root = tk.Tk()
+root = Tk()
 root.title("Cigarette Bud Crusher: BioCrux")
+#root.geometry('320x480')
 
-frame = tk.Frame(root)
-frame.pack(fill=tk.BOTH, expand=1)
+welcome = Frame(root)
+PageOne = Frame(root)
+PageTwo = Frame(root)
 
-value = tk.DoubleVar()
-msg = tk.StringVar()
+for frame in (welcome, PageOne, PageTwo):
+    frame.grid(row=5, column=3, sticky='news')
+
+value = DoubleVar()
+msg = StringVar()
+number = IntVar()
 
 dfont = tkFont.Font(size=-24)
 
-label_color = tk.Label(frame, text="Value", font=dfont)
-label_value = tk.Label(frame, textvariable=value, font=dfont)
-label_space = tk.Label(frame, text=" ", font=dfont)
-label_msg = tk.Label(frame, textvariable=msg, font=dfont)
+space=Label(welcome, text="                ", font=dfont)
+space.grid(row=0, column=1, padx=40, pady=40)
+space.grid(row=1, column=0, padx=15, pady=15)
+space.grid(row=2, column=0, padx=15, pady=15)
+space.grid(row=3, column=0, padx=15, pady=15)
+Label(welcome, text="Welcome to Biocrux Cigarette Zone.\n Please extinguish and drop your Cigarette bud here", font=dfont).grid(row=3, column=1, padx=10, pady=10)
 
-label_color.grid(row=0, column=0, padx=5, pady=5, sticky=tk.E)
-label_value.grid(row=0, column=1, padx=5, pady=5, sticky=tk.E)
-label_space.grid(row=0, column=2, padx=5, pady=5)
-label_space.grid(row=1, column=0, padx=5, pady=5)
-label_msg.grid(row=1, column=1, padx=5, pady=5)
-label_space.grid(row=1, column=2, padx=5, pady=5)
-label_space.grid(row=2, column=1, padx=5, pady=5)
+Label(PageOne, text=" ", font=dfont).grid(row=0, column=1, padx=5, pady=5)
+Label(PageOne, text="Enter your Phone Number: ", font=dfont).grid(row=1, column=0, padx=3, pady=5)
+Entry(PageOne, textvariable=number, width=30, font=dfont).grid(row=1, column=1, padx=5, pady=5)
+Button(PageOne, text='Test', font=dfont, command=number_e).grid(row=2, column=3, padx=5, pady=5)
 
-for i in range(0,3):
-    frame.rowconfigure(i, weight=1)
-for i in range(0,3):
-    frame.columnconfigure(i, weight=1)
+Label(PageTwo, text=" ", font=dfont).grid(row=0, column=1, padx=5, pady=5)
+Label(PageTwo, text="Thank you for Making India Clean and Green.\nWe value your support towards Swachh Bharat Abhiyan", font=dfont).grid(row=1, column=1, padx=0, pady=0)
+Button(PageTwo, text="welcomeScreen", command=lambda:raise_frame(welcome)).grid(row=2, column=1, padx=5, pady=5)
+
+#for frame in (welcome, PageOne, PageTwo):
+#    frame.rowconfigure(1, weight=1)
+#for frame in (welcome, PageOne, PageTwo):
+#    frame.columnconfigure(1, weight=1)
 
 root.bind('<F11>', toggle_fullscreen)
 root.bind('<Escape>', end_fullscreen)
@@ -119,7 +147,7 @@ root.bind('<Configure>', resize)
 
 setup()
 
-root.after(500, loop)
-
+root.after(1000, loop)
+raise_frame(welcome)
 toggle_fullscreen()
 root.mainloop()
